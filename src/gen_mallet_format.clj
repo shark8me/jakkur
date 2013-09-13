@@ -1,5 +1,6 @@
 (ns gen-mallet-format)
 (use '[mallet-iface :as iface])
+(use '[localpath :as lp])
 ;generate mallet-format data from svmlight data
 
 (import '(cc.mallet.classify MaxEnt Classifier))
@@ -46,10 +47,10 @@
               :let [le (.getEntry (.getBestLabel (.getLabeling i)))]]
           le))))
 
-(let [cl (iface/load-classifier "/home/kiran/sw/mallet-2.0.7/scrollback_data/my.classifier.trial9")]
+(let [cl (iface/load-classifier (str lp/ldir "my.classifier.trial9"))]
   (get-labels2 cl
                 (get-instancelist 
-                 "/home/kiran/sw/mallet-2.0.7/scrollback_data/svml.test")))
+                 (str lp/ldir "svml.test"))))
 
 (comment (doseq [line (line-seq (java.io.BufferedReader. *in*))] 
  

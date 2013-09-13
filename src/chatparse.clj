@@ -1,7 +1,7 @@
 (ns chatparse)
 (use '[clojure.test :as t])
 
-(def c1 (slurp "/home/kiran/sw/chat_dis/chat-dis/IRC/dev/linux-dev-0X.annot"))
+;(def c1 (slurp "/home/kiran/sw/chat_dis/chat-dis/IRC/dev/linux-dev-0X.annot"))
 
 (def hasgreet #{"hey", "hi", "hello"})
 (def sys? #{"entered the room" "left the room" "mode (" "is now known as"})
@@ -74,7 +74,8 @@
         chats (map parseline iseq)]
     (map fnx chats)))
 
+(comment
 (take 5 
       (generate-msgs 
-        "/home/kiran/sw/chat_dis/chat-dis/IRC/dev/linux-dev-0X.annot"))
+        "/home/kiran/sw/chat_dis/chat-dis/IRC/dev/linux-dev-0X.annot")))
        

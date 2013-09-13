@@ -1,5 +1,6 @@
 (ns perline)
 (use '[chatparse :as cp])
+(use '[localpath :as lp])
 ;operate on a per-chat message basis
 
 (defn iter1 [chats blocksize]
@@ -52,7 +53,7 @@
     (iter1 chats blocksize)
     ))
 
-(let [f1 "/home/kiran/sw/chat_dis/chat-dis/IRC/dev/linux-dev-0X.annot"
+(let [f1 (str lp/ldir "linux-dev-0X.annot")
       r1 (remove empty?
                  (prev-lines-for-curr2 f1))
       r2  (remove empty? 

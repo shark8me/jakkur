@@ -1,8 +1,9 @@
 (ns unigramstats)
 (use '[clojure.test :as t])
 (use '[chatparse :as cp])
+(use '[localpath :as lp])
 
-(def u1 (generate-msgs "/home/kiran/sw/chat_dis/chat-dis/IRC/dev/linux-dev-0X.annot"))
+(def u1 (generate-msgs (str lp/ldir "linux-dev-0X.annot")))
         
 (with-test
   (defn get-unigrams
@@ -53,12 +54,13 @@
         ug (apply merge 
                   (for [i f :let [[k v] (.split i ",")]] 
                     {k (float (/ (java.lang.Integer/parseInt v) tot))}))]
-    (assoc {} :unigrams ug :tot (apply + (vals ug))))) 
+    (assoc {} :unigrams ug :tot (apply + (vals ug)))))
+
 (try
-  (let [ugramfin (get-unigram-probs "/home/kiran/sw/chat_dis/chat-dis/IRC/dev/linux-dev-0X.annot")] 
+  (let [ugramfin (get-unigram-probs (str lp/ldir "linux-dev-0X.annot"))] 
         [(count (:unigrams ugramfin)) (:tot ugramfin)]) 
 (catch Throwable t (.printStackTrace t)))
- (:tot (load-unigrams "/home/kiran/sw/chat_dis/chat-distr/data/unigrams.txt"))
+ (:tot (load-unigrams (str lp/ldir "unigrams.txt")))
 
 
               

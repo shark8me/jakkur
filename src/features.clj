@@ -4,6 +4,7 @@
 (use '[techterm :as tt])
 (use '[unigramstats :as ustats])
 (use '[perline :as perline])
+(use '[localpath :as lp])
 
 ;add features for all messages
 
@@ -139,12 +140,12 @@
   [infile]
   (let [chats  (cp/generate-msgs infile)
         blocksize 129
-        ugrambase (ustats/load-unigrams "/home/kiran/sw/chat_dis/chat-distr/data/unigrams.txt") 
+        ugrambase (ustats/load-unigrams (str lp/ldir "unigrams.txt")) 
         ugram (:unigrams ugrambase)
         linuxwords (set (map #(.trim %) 
                              (.split 
                                (slurp 
-                                 "/home/kiran/sw/chat_dis/chat-dis/data/mytechwords.dump") "\n")))
+                                 (str lp/ldir "mytechwords.dump")) "\n")))
         featfuncs [greet  answer-word deltaT (partial hastech linuxwords) 
                    (partial repeatword ugram)
                    flength 
@@ -161,12 +162,12 @@
   [infile]
   (let [chats  (cp/generate-msgs infile)
         blocksize 129
-        ugrambase (ustats/load-unigrams "/home/kiran/sw/chat_dis/chat-distr/data/unigrams.txt") 
+        ugrambase (ustats/load-unigrams (str lp/ldir "unigrams.txt")) 
         ugram (:unigrams ugrambase)
         linuxwords (set (map #(.trim %) 
                              (.split 
                                (slurp 
-                                 "/home/kiran/sw/chat_dis/chat-dis/data/mytechwords.dump") "\n")))
+                                 (str lp/ldir "mytechwords.dump")) "\n")))
         featfuncs [greet  answer-word deltaT (partial hastech linuxwords) 
                    (partial repeatword ugram)
                    flength mention speaker  question thanks]
@@ -183,8 +184,8 @@
                          ))))))
 
 
-(def lwords (slurp "/home/kiran/sw/chat_dis/chat-dis/data/mytechwords.dump"))
-(def linuxwords (set (map #(.trim %) (.split lwords "\n"))))
+;(def lwords (slurp "/home/kiran/sw/chat_dis/chat-dis/data/mytechwords.dump"))
+;(def linuxwords (set (map #(.trim %) (.split lwords "\n"))))
 
 (defn write-feats
   [infile outfile]
@@ -199,14 +200,14 @@
                                                             (for [[k v] (dissoc i :same) :when (not= 0 v)]
                                                               (str k " " v)))))))))
 
-(def trainfile "/home/kiran/sw/chat_dis/chat-dis/IRC/dev/linux-dev-0X.annot")
+;(def trainfile "/home/kiran/sw/chat_dis/chat-dis/IRC/dev/linux-dev-0X.annot")
 
 
 (try
-(write-feats "/home/kiran/sw/chat_dis/chat-dis/IRC/dev/linux-dev-0X.annot"
-             "/tmp/train.feat")
-(write-feats "/home/kiran/sw/chat_dis/chat-dis/IRC/test/linux-test-0.annot"
-             "/tmp/test.feat")
+(write-feats (str lp/ldir "linux-dev-0X.annot")
+             (str lp/tmpdir "/train.feat"))
+(write-feats (str lp/ldir  "linux-test-0.annot")
+             (str lp/tmpdir "test.feat"))
 (catch Exception e (.printStackTrace e)))
 
 ;(count (generate-features "/home/kiran/sw/chat_dis/chat-dis/IRC/dev/linux-dev-0X.annot"))
