@@ -1,5 +1,6 @@
 (ns chatparse)
 (use '[clojure.test :as t])
+(use '[localpath :as lp])
 
 ;(def c1 (slurp "/home/kiran/sw/chat_dis/chat-dis/IRC/dev/linux-dev-0X.annot"))
 
@@ -74,8 +75,27 @@
         chats (map parseline iseq)]
     (map fnx chats)))
 
+(with-test
+  (defn generate-msgs-perline
+    "generate fn to process chat msgs. Creates a closure and returns 
+   a function that takes a chat line as input"
+    []
+    (let [accu (fn [] (let [x (ref #{})]
+                        (fn [y] (dosync (alter x conj y)))))
+          spkr-accu (accu)
+          fnx (fn[cm]
+                (let [chatmsg (parseline cm)
+                      spkrs (spkr-accu (chatmsg :speaker))]
+                  (decoratemsg chatmsg spkrs)))]
+      fnx))  
+  (is (= 7118 (:timestamp (let [c1 (slurp (str lp/ldir "linux-dev-0X.annot"))
+                                iseq (first (.split c1 "\n"))
+                                acu (generate-msgs-perline)]
+                            (acu iseq))))))
+
+;(take 2 (gm2 (str lp/ldir "linux-dev-0X.annot")))
 (comment
-(take 5 
+(take 2 
       (generate-msgs 
-        "/home/kiran/sw/chat_dis/chat-dis/IRC/dev/linux-dev-0X.annot")))
+        (str lp/ldir "linux-dev-0X.annot"))))
        
