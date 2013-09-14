@@ -126,15 +126,18 @@
                    (or techprev techcurr) {"one_tech" 1}
                    :else {"neither_tech" 1}))))
 
-(def featfuncs
-  [greet  answer-word
-   deltaT 
-   flength mention speaker  question thanks])
+(defn get-feats
+  "get a list of feature functions"
+  [linuxwords ugram]
+  [greet  answer-word deltaT (partial hastech linuxwords) 
+   (partial repeatword ugram)
+   flength  mention speaker  question thanks])
 
 (defn pairfeats
   [featfuncs prev curr]
+  (do ;(println (str " in pairfeats " curr))
   (merge {:same (if (.equals (:thread prev) (:thread curr)) 1 0)} 
-    (reduce (fn[ x f] (f {:prev prev :curr curr :feats x})) {} featfuncs)))
+    (reduce (fn[ x f] (f {:prev prev :curr curr :feats x})) {} featfuncs))))
 
 (defn generate-features
   [infile]
@@ -158,31 +161,38 @@
       (pairfeats featfuncs prev curr)
       )))
 
-(defn generate-features-perline
-  [infile]
-  (let [chats  (cp/generate-msgs infile)
-        blocksize 129
+(defn gen-features-closure
+  "should take all inputs such as unigrams, techwords, but leaving empty for now"
+  []
+  (let [blocksize 129
         ugrambase (ustats/load-unigrams (str lp/ldir "unigrams.txt")) 
         ugram (:unigrams ugrambase)
         linuxwords (set (map #(.trim %) 
                              (.split 
                                (slurp 
                                  (str lp/ldir "mytechwords.dump")) "\n")))
-        featfuncs [greet  answer-word deltaT (partial hastech linuxwords) 
-                   (partial repeatword ugram)
-                   flength mention speaker  question thanks]
+        featfuncs (get-feats linuxwords ugram)
         my-accumulator (perline/accumulator)]
-    (reduce into [] 
-            (remove empty? 
-                    (for [i  chats :let [prevchats (my-accumulator i)]]
-                      (for [prev (pop prevchats) :let [curr (peek prevchats)]
-                          :while (not= curr prev)
-                          :when (and (not (.equals "T-1" (curr :thread)))
-                                     (not (.equals "T-1" (prev :thread)))
-                                     (> blocksize (- (curr :timestamp) (prev :timestamp))))]
-                        (pairfeats featfuncs prev curr)
-                         ))))))
+    (fn [inp]
+      (let [prevchats (my-accumulator inp)]
+              ;(println (str "curr1 " (peek prevchats)))
+        (for [prev (pop prevchats) :let [curr (peek prevchats)]
+              :while (not= curr prev)
+              :when (and (not (.equals "T-1" (curr :thread)))
+                         (not (.equals "T-1" (prev :thread)))
+                         (> blocksize (- (curr :timestamp) (prev :timestamp))))]
+          (pairfeats featfuncs prev curr))))))
 
+(defn generate-features-perline
+  [infile]
+  (let [c1 (slurp (str lp/ldir "linux-dev-0X.annot"))
+        iseq (.split c1 "\n")
+        acu (cp/generate-msgs-perline)  
+        featfn (gen-features-closure)]
+    ;(map acu (take 2 iseq))
+    ;(map featfn (map acu (take 5 iseq)))
+    (reduce into []  (remove empty? (map featfn (map acu iseq))))
+    ))
 
 ;(def lwords (slurp "/home/kiran/sw/chat_dis/chat-dis/data/mytechwords.dump"))
 ;(def linuxwords (set (map #(.trim %) (.split lwords "\n"))))
@@ -200,9 +210,15 @@
                                                             (for [[k v] (dissoc i :same) :when (not= 0 v)]
                                                               (str k " " v)))))))))
 
+(def fkeys #{"dt_0" "dt_1" "neither_tech" "dt_2" "dt_3" "curr_q" "dt_4" "prev_q" 
+             "dt_5" "dt_6" "dt_7" "prev_long" "dt_8" "curr_long" "dt_9" "prev_answer" 
+             "curr_answer" "dt_10" "repeat_2" "dt_11" "one_tech" "repeat_3" 
+             "repeat_4" "same_mention" "both_tech" "prev_mentions" "same_spk" 
+             "curr_mentions" "curr_thx" "prev_thx" "curr_mentions_prev" 
+             "curr_greet" "prev_mentions_curr" "prev_greet"})
 ;(def trainfile "/home/kiran/sw/chat_dis/chat-dis/IRC/dev/linux-dev-0X.annot")
 
-
+(comment
 (try
 (write-feats (str lp/ldir "linux-dev-0X.annot")
              (str lp/tmpdir "/train.feat"))
@@ -210,7 +226,9 @@
              (str lp/tmpdir "test.feat"))
 (catch Exception e (.printStackTrace e)))
 
-;(count (generate-features "/home/kiran/sw/chat_dis/chat-dis/IRC/dev/linux-dev-0X.annot"))
+ 
+(time (count (generate-features-perline (str lp/ldir "linux-dev-0X.annot"))))
+)
 
 
 
