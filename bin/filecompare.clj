@@ -18,3 +18,31 @@
       (filter (fn[[x y z]](not= (count x) (count y))) 
               (map vector stream1 stream2 (iterate inc 1))))
 
+;compare the accuracy from different predictions, the first column is the gold standard.
+(let [iseq (.split (slurp "/home/kiran/sw/ccomp/mallet/tog4.txt") "\n")
+      fnx (fn[x] (vec (.split x ",")))
+      gs (map #((fnx %) 0) iseq)
+      megam (map #((fnx %) 1) iseq)
+      mallet (map #((fnx %) 2) iseq)
+      code (map #((fnx %) 3) iseq)
+      totcount (count gs)
+      fny (fn[inseq ] 
+            (float (/ 
+                     (count (filter (fn [[x y]] (= x y)) (map vector gs inseq)))
+                     totcount)))] 
+  (str "megam " (fny megam) " mallet " (fny mallet) "code " (fny code)))
+
+(spit "/home/kiran/sw/ccomp/mallet/pred2.output"
+      (clojure.string/join "\n"
+                           (let [iseq (.split (slurp 
+                                                "/home/kiran/sw/ccomp/mallet/predicted.output") 
+                                        "\n")
+                                 fnx (fn[x]
+                                       (let [iseq2 (vec(.split x "\t"))
+                                             oneval (new BigDecimal (iseq2 2))
+                                             zeroval (new BigDecimal (iseq2 4))]
+                                         (if (> oneval zeroval) 
+                                           (str "1 " oneval)
+                                           (str "0 " oneval))))]
+                             (map fnx iseq
+                             ))))

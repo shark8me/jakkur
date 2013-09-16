@@ -19,28 +19,40 @@
                                 (str i ":" (if-let [k (allfeats i)] k 0))))
               (inp :same) nil nil)))
 
+(defn list-format
+  "converts a map of features into Mallet Instances, only a list 
+   of feature names are used."
+  [inp]
+  (let [allfeats (dissoc inp :same)] 
+    (new Instance 
+         (clojure.string/join " " (keys allfeats))
+              (inp :same) nil nil)))
+
 (defn get-mallet-format-line-closure
   "a closure that operates on a chat msg line"
-  []
-  (let [acu (cp/generate-msgs-perline)  
+  [parsefn]
+  (let [acu (cp/generate-msgs-perline parsefn)  
         featfn (frs/gen-features-closure)
-        clfn (gmf/classify-closure (str lp/ldir "my.classifier.trial9"))]
+        clfn (gmf/classify-closure (str lp/ldir "mallet.classifier.trial9"))]
     (fn [inline]
       (let [ik (featfn (acu inline))
             rval (if (empty? ik) []
-                   (let [instances (map svml-format ik)]
+                   (let [instances (map list-format ik)]
                      (clfn (gmf/get-instancelist-line instances))))]        
-    rval))))
+    [inline rval]))))
 
 (defn get-mallet-format
   [infile]
-  (let [c1 (slurp (str lp/ldir "linux-dev-0X.annot"))
+  (let [c1 (slurp infile)
         iseq (.split c1 "\n")  
-        featfn (get-mallet-format-line-closure)]
-    (reduce into [] (map featfn  iseq))))
+        featfn (get-mallet-format-line-closure cp/parseline)]
+    (map featfn  iseq)))
 
-(comment
-  (def g5 (first(get-mallet-format (str lp/ldir "linux-dev-0X.annot"))))
 (try
-  (count (get-mallet-format (str lp/ldir "linux-dev-0X.annot")))
-  (catch Exception e (.printStackTrace e))))
+  (spit "/tmp/t2.txt" 
+        (clojure.string/join "\n"
+        (map #(vec (second %)) 
+             (filter (fn[[x y]] (not-empty y))
+                      (get-mallet-format (str lp/ldir "linux-dev-0X.annot"))))))
+ 
+       (catch Exception e (.printStackTrace e)))

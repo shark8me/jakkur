@@ -1,3 +1,3 @@
-# Introduction to default
+# Introduction to sb
 
 TODO: write [great documentation](http://jacobian.org/writing/great-documentation/what-to-write/)

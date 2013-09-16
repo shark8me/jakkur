@@ -32,6 +32,23 @@
     (is (.equals "Chauncey" (pres :speaker)))
     (is (.equals "T3" (pres :thread)))))
 
+(defn parse-unthreaded-line
+  "parses a chat message which has not been threaded"
+  [line]
+    (let [l (.split line " ")
+          mrestcol (nthrest l 3)
+          mrest (clojure.string/join " " mrestcol)]
+      (assoc {} :thread 0 
+             :timestamp (java.lang.Integer/parseInt (first l))
+             :speaker (.toLowerCase (nth l 1))
+             :comment (.equals ":" (nth l 2))
+             :message mrest
+             ;:hasgreet (some hasgreet mrestcol)
+             :issys (some #(not= -1 (.indexOf mrest %)) sys?)
+             :hasq (not= -1 (.indexOf mrest "?"))
+             ;:islong (> (count mrestcol) 10))
+             )))
+
 (with-test 
   (defn make-words [iline]
     (let [l (.split iline " ")
@@ -79,12 +96,12 @@
   (defn generate-msgs-perline
     "generate fn to process chat msgs. Creates a closure and returns 
    a function that takes a chat line as input"
-    []
+    [parsefn]
     (let [accu (fn [] (let [x (ref #{})]
                         (fn [y] (dosync (alter x conj y)))))
           spkr-accu (accu)
           fnx (fn[cm]
-                (let [chatmsg (parseline cm)
+                (let [chatmsg (parsefn cm)
                       spkrs (spkr-accu (chatmsg :speaker))]
                   (decoratemsg chatmsg spkrs)))]
       fnx))  
