@@ -1,6 +1,7 @@
 (ns gen-mallet-format)
 (use '[mallet-iface :as iface])
 (use '[localpath :as lp])
+(use '[features :as frs])
 ;generate mallet-format data from svmlight data
 
 (import '(cc.mallet.classify MaxEnt Classifier MaxEntTrainer))
@@ -10,6 +11,7 @@
                          Target2Label
                          Csv2FeatureVector
                          Token2FeatureVector
+                         ;SvmLight2Vectors
                          FeatureSequence2AugmentableFeatureVector))
 
 (defn get-instancelist-line 
@@ -20,8 +22,8 @@
              (new SerialPipes 
                   (doto 
                     (new java.util.ArrayList) 
-                    (.add (new Target2Label))
-                    (.add (new Csv2FeatureVector))
+                    ;(.add (new Target2Label))
+                    (.add (new SvmLight2FeatureVectorAndLabel))
                     )))]
     (doseq [i (vec instances)] 
       (.addThruPipe ilist i))
@@ -32,104 +34,81 @@
   [svml-input]
   (let [svmlin (.split (slurp svml-input) "\n")
         fnx (fn[lin] (let [all (.split lin " ")]
-                           (new Instance (clojure.string/join " " (rest all))
-                                (first all) nil nil))) 
+                           (new Instance (str (first all) (clojure.string/join " " (rest all)))
+                                nil nil nil))) 
         ilistseq (map fnx svmlin)
         ilist 
          (new InstanceList 
                    (new SerialPipes 
                          (doto 
                             (new java.util.ArrayList) 
-                    ;        (.add (new SvmLight2FeatureVectorAndLabel))
-                            (.add (new Target2Label))
-                           (.add (new Csv2FeatureVector))
-                    ;(.add (new Token2FeatureVector))
-                    ;(.add (new TokenSequence2FeatureSequence))
-                    ;(.add (new FeatureSequence2AugmentableFeatureVector))                            
-                                  )))]
+                            ;(.add (new Target2Label))
+                            (.add (new SvmLight2FeatureVectorAndLabel)))))]
          (doseq [i (vec ilistseq)] 
            (.addThruPipe ilist i))
          ilist))
 
+(defn get-instancelist2 
+  [svml-input]
+  (let [svmlin (.split (slurp svml-input) "\n")
+        fnx (fn[lin] (let [all (.split lin " ")
+                           iset (set (rest all))
+                           istr (for [i frs/fkeys ]
+                                  (str i ":" (if (iset i) 1 0)))] 
+                       ;(println (str " all " all " f " (first all)))
+                          (new Instance (str (first all) " " 
+                                             (clojure.string/join " " istr))
+                               ;(first all) 
+                               nil nil nil))) 
+        ilistseq (map fnx svmlin)
+        ilist 
+         (new InstanceList 
+                   (new SerialPipes 
+                         (doto 
+                            (new java.util.ArrayList) 
+                            ;(.add (new Target2Label))
+                            (.add (new SvmLight2FeatureVectorAndLabel)))))]
+         (doseq [i (vec ilistseq)] 
+           (.addThruPipe ilist i))
+         ilist))
 
+(defn get-labels2
+  "given a classifier and an InstanceList, returns the predicted labels"
+  [classifier ilist]
+  (let [res (for [i (.classify classifier ilist) 
+                  :let [le (.getLabelVector i)
+                        lab (.getEntry (.getBestLabel le))
+                        v (.getBestValue le)]]      
+              [lab (if (.equals lab "1") v (do ;(println " lab " lab) 
+                                             (- 1 v)))])]
+    res))
 
-(comment
-  (for [i (.classify classifier ilist) 
-              :let [le(.getLabeling i)]]
-    (let [k (.getEntry (.getBestLabel le))]      
-    [k
-    (if (.equals k "1")
-      (.valueOfCorrectLabel i)
-      (- 1 (.valueOfCorrectLabel i)))
-                    ]
-    ))
-  (for [i (take 5 (get-instancelist "/home/kiran/sw/ccomp/mallet/tf2.txt"))]
-  (first (.getAlphabets i)))
-(clojure.string/join " "
-                     (.size (.getAlphabet 
-                            (first (get-instancelist 
-                                     ;"/home/kiran/sw/ccomp/mallet/tf2.txt"
-                                     (str lp/ldir "svml.train")
-                                     )))))
-
-(spit "/tmp/res3.txt"
-      (clojure.string/join "\n"
-(let [ilist(get-instancelist "/home/kiran/sw/ccomp/mallet/tf2.txt")
-      trainer (doto (new MaxEntTrainer)
-                (.train ilist 100))
-      classifier (.getClassifier trainer)
-      ]
-  (println (str " done ?" (.isFinishedTraining trainer) 
-                " precision " (.getAccuracy classifier ilist)))
-  (println (str " classifier feats " 
-                (vec (for [i (.getPerClassFeatureSelection classifier)]
-                       (.toString i)))))
-                (get-labels2 classifier ilist)
-                )))
-
-(let [ilist(get-instancelist "/home/kiran/sw/ccomp/mallet/tf2.txt")
-      trainer (doto (new MaxEntTrainer) (.train ilist 100))
-      classifier (.getClassifier trainer)
-      ;classifier (iface/load-classifier "/home/kiran/sw/ccomp/mallet/mallet.classifier.trial9")
-      ]
-  (println (str " classifier feats " (.size (.getAlphabet classifier)) " "
-                (.size (.getAlphabet (first ilist)))
-                  ;(vec (for [i (.getAlphabets classifier)] i))
-                  )
-           )))
-
-  (defn get-labels2
-    "given a classifier and an InstanceList, returns the predicted labels"
-    [classifier ilist]
-    (let [res (for [i (.classify classifier ilist) 
-                    :let [le (.getLabelVector i)
-                          lab (.getEntry (.getBestLabel le))
-                          v (.getBestValue le)]]      
-                [lab (if (.equals lab "1") v (do ;(println " lab " lab) 
-                                               (- 1 v)))])]
-      res))
-
-  (defn classify-closure
-    [classifier-parameters]
-    (let [;cl (iface/load-classifier classifier-parameters)
-          ilist(get-instancelist "/home/kiran/sw/ccomp/mallet/tf2.txt")
-          trainer (doto (new MaxEntTrainer) (.train ilist 100))
-          classifier (.getClassifier trainer)]
-      (fn [ilist] (get-labels2 classifier ilist))))
+(defn classify-closure
+  [train-instance-list]
+  (let [ilist (get-instancelist2 train-instance-list)
+        ;"/home/kiran/sw/ccomp/mallet/tf2.txt"
+        trainer (doto (new MaxEntTrainer) (.train ilist 100))
+        classifier (.getClassifier trainer)]
+    (fn [il] (get-labels2 classifier il))))
 
 (comment
-  (spit "/tmp/res3.txt"
+  (spit "/tmp/res5.txt"
         (clojure.string/join "\n"
-                             (let [ilist(get-instancelist "/home/kiran/sw/ccomp/mallet/tf2.txt")
+                             (let [ilist(get-instancelist2 "/home/kiran/sw/ccomp/mallet/tf2.txt")
                                    trainer (doto (new MaxEntTrainer) (.train ilist 100))
-                                   classifier (.getClassifier trainer)
-                                   cl (iface/load-classifier 
-                                        ;(str lp/ldir "my.classifier.trial9")
-                                        "/home/kiran/sw/ccomp/mallet/mallet.classifier.trial9"
-                                        )
-                                   ]
-                               (println (str " accuracy " (.getAccuracy classifier ilist)))
+                                   classifier (.getClassifier trainer)]
+                               (println (str " accuracy " (.getAccuracy classifier ilist) 
+                                             ;(.getTarget (first ilist)) 
+                                             " "(.getData (first ilist))))
                                (get-labels2 classifier ilist))))
+  
+  (spit "/tmp/res4.txt"
+        (clojure.string/join "\n"
+                             (let [flist "/home/kiran/sw/ccomp/mallet/tf2.txt"
+                                   ilist(get-instancelist2 flist)
+                                   xfn (classify-closure flist)]
+                               ;(println (str " accuracy " (.getAccuracy classifier ilist)))
+                               (xfn ilist))))
 
 
 
