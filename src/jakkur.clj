@@ -46,7 +46,7 @@
             rval (if (empty? ik) []
                    (let [instances (gmf/get-instancelist-line
                                      (map svml-format ik))]
-                     (clfn instances)))]        
+                     (map #(conj %1 %2) (clfn instances) (map :tid ik))))]        
     [parsedmsg rval]))))
 
 (defn get-mallet-format-line-closure-old

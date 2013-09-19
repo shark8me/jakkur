@@ -181,7 +181,8 @@
               :when (and (not (.equals "T-1" (curr :thread)))
                          (not (.equals "T-1" (prev :thread)))
                          (> blocksize (- (curr :timestamp) (prev :timestamp))))]
-          (pairfeats featfuncs prev curr))))))
+          ;(pairfeats featfuncs prev curr)
+          (assoc (pairfeats featfuncs prev curr) :tid (prev :thread)))))))
 
 (defn generate-features-perline
   [infile]
@@ -189,8 +190,6 @@
         iseq (.split c1 "\n")
         acu (cp/generate-msgs-perline cp/parseline)  
         featfn (gen-features-closure)]
-    ;(map acu (take 2 iseq))
-    ;(map featfn (map acu (take 5 iseq)))
     (reduce into []  (remove empty? (map featfn (map acu iseq))))
     ))
 
@@ -204,15 +203,19 @@
               (generate-features-perline infile)
               ]
           (clojure.string/join "\n" 
-                               (map #(str %2 " " %1)
-                                    (for [i fe :when (not (empty? i))]
-                                      (clojure.string/join " "
-                                                           (into [(:same i)]
-                                                                 (for [[k v] (dissoc i :same) :when (not= 0 v)]
-                                                                   ;(str k " " v)
-                                                                   k
-                                                                   ))))
-                                    (iterate inc 1))))))
+                               ;(map #(str %2 " " %1)
+                               (for [i fe :when (not (empty? i))]
+                                 (clojure.string/join " "
+                                                      (into [(:same i)]
+                                                            (for [[k v] 
+                                                                  (dissoc i :same) 
+                                                                  ;:when (not= 0 v)
+                                                                  ]
+                                                              (str k " " v)
+                                                              ;k
+                                                              ))))
+                               ;(iterate inc 1)
+                               ))))
 
 (def fkeys #{"dt_0" "dt_1" "neither_tech" "dt_2" "dt_3" "curr_q" "dt_4" "prev_q" 
              "dt_5" "dt_6" "dt_7" "prev_long" "dt_8" "curr_long" "dt_9" "prev_answer" 
@@ -225,7 +228,9 @@
 (comment
 (try
 (write-feats (str lp/ldir "linux-dev-0X.annot")
-             "/tmp/tf1.txt")
+             ;(str lp/ldir "trainv2.feat")
+             "/tmp/tf2.txt"
+             )
 (write-feats (str lp/ldir  "linux-test-0.annot")
              (str lp/tmpdir "test.feat"))
 (catch Exception e (.printStackTrace e)))

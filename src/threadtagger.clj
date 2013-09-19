@@ -13,7 +13,8 @@
                       (fn [{:keys [tid score] :as m} [k v]] 
                         (if (> v score)
                           {:tid k :score v} m))
-                          {:tid -1 :score -1} scoremap)]
+                          {:tid -1 :score -1} (if-let [smap scoremap] 
+                                                smap {}))]
       (let [tid (:score top-score)] 
         (if (> tid 0) (:tid top-score) (inc curthread)) 
         )))
@@ -30,8 +31,15 @@
       cleanfn (fn[[m scores]] 
                   [(dissoc m :thread ) 
                    (for [[c s] scores]
-                     [(java.lang.Integer/parseInt c) (- 1 s)])])]
-  (map cleanfn inp2))
+                     [(java.lang.Integer/parseInt c) (- 1 s)])])
+      ptid (partial get-tid 34)]
+  ;(map cleanfn inp2)
+  (map
+    (fn[lst]
+      (ptid 
+      (apply merge-with + 
+                        (map (fn[[sc va tid]] {tid (- 1 va)}) lst))))
+    (map second inp2)))
  
            (
  
