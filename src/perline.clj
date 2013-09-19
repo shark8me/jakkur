@@ -45,18 +45,18 @@
                                       (if (>= (count j) maxsize )
                                         (subvec j (- (count j) maxsize)) j)                           
                                       y)))))
-       :changelast (fn[k kfn]
+       :changelast (fn[k v]
                      (dosync (alter x 
                                     (fn[j]
                                       (conj (pop j)
-                                            (update-in (peek j) [k] kfn))))))
+                                            (assoc (peek j) k v))))))
        :curstate (fn[] @x)
        }))
-  (is (= 20 (:v (peek  (let [ac (accumulator2)
+  (is (= 10 (:v1 (peek  (let [ac (accumulator2)
       imap (mapv #(hash-map :k %1 :v %2) (range 10) (range 10 20)) ]
                     (doseq [i imap]
                       ((ac :append) i))
-                    ((ac :changelast) :v inc)
+                    ((ac :changelast) :v1 10)
                     ((ac :curstate))))))))
      
                 

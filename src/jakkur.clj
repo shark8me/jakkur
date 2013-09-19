@@ -5,6 +5,7 @@
 (use '[features :as frs])
 (use '[default.core :as dc])
 (use '[gen-mallet-format :as gmf])
+(use '[threadtagger :as tagger])
 
 (import '(cc.mallet.types Instance))
 
@@ -37,24 +38,29 @@
 (defn get-mallet-format-line-closure
   "a closure that operates on a chat msg line"
   [parsefn]
-  (let [acu (cp/generate-msgs-perline parsefn)  
-        featfn (frs/gen-features-closure)
-        clfn (gmf/classify-closure "/home/kiran/sw/ccomp/mallet/tf2.txt")]
+  (let [accuobj (perline/accumulator2)
+        acu (cp/generate-msgs-perline parsefn)  
+        featfn (frs/gen-features-closure (accuobj :append))
+        clfn (gmf/classify-closure (str lp/ldir "tf2.feat"))
+        tidfn (tagger/score-tid-closure 0)]
     (fn [inline]
       (let [parsedmsg (acu inline)
             ik (featfn parsedmsg)
             rval (if (empty? ik) []
                    (let [instances (gmf/get-instancelist-line
                                      (map svml-format ik))]
-                     (map #(conj %1 %2) (clfn instances) (map :tid ik))))]        
-    [parsedmsg rval]))))
+                     (map #(conj %1 %2) (clfn instances) (map :tid ik))))
+            ntid (tidfn [parsedmsg rval])]
+        ;(println (str " closure ntid " ntid))
+        ((accuobj :changelast) :ntid ntid)))))
 
 (defn get-mallet-format-line-closure-old
   "a closure that operates on a chat msg line"
   [parsefn]
-  (let [acu (cp/generate-msgs-perline parsefn)  
+  (let [
+        acu (cp/generate-msgs-perline parsefn)  
         featfn (frs/gen-features-closure)
-        clfn (gmf/classify-closure "/home/kiran/sw/ccomp/mallet/tf2.txt")]
+        clfn (gmf/classify-closure (str lp/ldir "tf2.feat"))]
     (fn [inline]
       (let [parsedmsg (acu inline)
             ik (featfn parsedmsg)
@@ -70,7 +76,7 @@
         iseq (.split c1 "\n")  
         featfn (get-mallet-format-line-closure cp/parseline)]
     ;(println (str "ff " (first iseq)))
-    (map featfn   iseq)))
+      (map featfn iseq)))
 
 (defn output-format2
   [infile outfile]
@@ -82,11 +88,13 @@
 
 ;(output-format2 (str lp/ldir "linux-dev-0X.annot") 
 ;                "/tmp/t2.txt") 
-(comment
- (try
-   (spit "/tmp/t3.txt" 
-         (clojure.string/join "\n"
-                              (get-mallet-format 
-                                (str lp/ldir "linux-dev-0X.annot")
-                                ))) 
-       (catch Exception e (.printStackTrace e))))
+
+(defn output-format3
+  [outfile]
+  (let [inps (map (fn[l] (str (:ntid l)" " (:speaker l)" " (:message l)))
+                  ;(remove #(.equals (:ntid %) "T-1")
+                          (map last
+                          (get-mallet-format (str lp/ldir "linux-dev-0X.annot"))))]
+    (spit outfile (clojure.string/join "\n"  inps))))
+     
+;(output-format3 "c:\\temp\\t5.txt")

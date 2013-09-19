@@ -163,6 +163,30 @@
 
 (defn gen-features-closure
   "should take all inputs such as unigrams, techwords, but leaving empty for now"
+  [appendfn]
+  (let [blocksize 129
+        ugrambase (ustats/load-unigrams (str lp/ldir "unigrams.txt")) 
+        ugram (:unigrams ugrambase)
+        linuxwords (set (map #(.trim %) 
+                             (.split 
+                               (slurp 
+                                 (str lp/ldir "mytechwords.dump")) "\n")))
+        featfuncs (get-feats linuxwords ugram)
+        ;my-accumulator (perline/accumulator2)
+        ]
+    (fn [inp]
+      (let [prevchats (appendfn inp)]
+              ;(println (str "curr1 " (peek prevchats)))
+        (for [prev (pop prevchats) :let [curr (peek prevchats)]
+              :while (not= curr prev)
+              :when (and (not (.equals "T-1" (curr :thread)))
+                         (not (.equals "T-1" (prev :thread)))
+                         (> blocksize (- (curr :timestamp) (prev :timestamp))))]
+          ;(pairfeats featfuncs prev curr)
+          (assoc (pairfeats featfuncs prev curr) :tid (prev :ntid)))))))
+
+(defn gen-features-closure-old
+  "should take all inputs such as unigrams, techwords, but leaving empty for now"
   []
   (let [blocksize 129
         ugrambase (ustats/load-unigrams (str lp/ldir "unigrams.txt")) 
