@@ -58,10 +58,7 @@
                       ((ac :append) i))
                     ((ac :changelast) :v1 10)
                     ((ac :curstate))))))))
-     
-                
-  (def my-accumulator (accumulator))
-  (map my-accumulator (vec (range 10)))
+
 
   (defn prev-lines-for-curr2
     [infile]

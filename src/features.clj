@@ -135,8 +135,14 @@
 
 (defn pairfeats
   [featfuncs prev curr]
-  (do ;(println (str " in pairfeats " curr))
+  (do (println (str " in pairfeats " curr))
   (merge {:same (if (.equals (:thread prev) (:thread curr)) 1 0)} 
+    (reduce (fn[ x f] (f {:prev prev :curr curr :feats x})) {} featfuncs))))
+
+(defn pairfeats-sbformat
+  [featfuncs prev curr]
+  (do ;(println (str " in pairfeats " curr))
+  (merge {} 
     (reduce (fn[ x f] (f {:prev prev :curr curr :feats x})) {} featfuncs))))
 
 (defn generate-features
@@ -184,6 +190,30 @@
                          (> blocksize (- (curr :timestamp) (prev :timestamp))))]
           ;(pairfeats featfuncs prev curr)
           (assoc (pairfeats featfuncs prev curr) :tid (prev :ntid)))))))
+
+(defn gen-features-closure-sbformat
+  "should take all inputs such as unigrams, techwords, but leaving empty for now"
+  [appendfn]
+  (let [blocksize 129
+        ugrambase (ustats/load-unigrams (str lp/ldir "unigrams.txt")) 
+        ugram (:unigrams ugrambase)
+        linuxwords (set (map #(.trim %) 
+                             (.split 
+                               (slurp 
+                                 (str lp/ldir "mytechwords.dump")) "\n")))
+        featfuncs (get-feats linuxwords ugram)]
+    (fn [inp]
+      (do ;(println (str "input to closure " inp))
+      (let [prevchats (appendfn inp)]
+              ;(println (str "curr1 " (count prevchats)))
+        (for [prev (pop prevchats) :let [curr (peek prevchats)]
+              :while (not= curr prev)
+             :when (> blocksize (- (curr :timestamp) (prev :timestamp)))]
+          (assoc (pairfeats-sbformat featfuncs prev curr) :tid (prev :ntid)))
+        ;(pairfeats-sbformat featfuncs prev curr)
+          ;(mapv :msgid [prev curr])
+          )
+        ))))
 
 (defn gen-features-closure-old
   "should take all inputs such as unigrams, techwords, but leaving empty for now"

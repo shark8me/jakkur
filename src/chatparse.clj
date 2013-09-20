@@ -103,6 +103,7 @@
           fnx (fn[cm]
                 (let [chatmsg (parsefn cm)
                       spkrs (spkr-accu (chatmsg :speaker))]
+                  ;(println (str " generate-msgs-perline " chatmsg))
                   (decoratemsg chatmsg spkrs)))]
       fnx))  
   (is (= 7118 (:timestamp (let [c1 (slurp (str lp/ldir "linux-dev-0X.annot"))
