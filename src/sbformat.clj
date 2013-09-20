@@ -25,6 +25,7 @@
           mrestcol (subvec l 4)
           mrest (clojure.string/join " " mrestcol)
           start 0]
+      ;(println (str "parseline " line))
       (assoc {} :msgid (l start) 
              :timestamp (Long/parseLong (l (+ 1 start)))
              :room (l (+ 2 start))
@@ -98,79 +99,102 @@
   (let [res (for [i (.classify classifier ilist) 
                   :let [le (.getLabelVector i)
                         lab (.getEntry (.getBestLabel le))
-                        v (.getBestValue le)]]      
-              [lab (if (.equals lab "1") v (do ;(println " lab " lab) 
-                                             (- 1 v)))])]
+                        v (.getBestValue le)]]
+         (do     ;(println (str " val " v))
+              [lab (if (.equals lab "1") v (- 1 v))]))]
     res))
 
 (defn classify-closure-sbformat
   "returns a closure that classifies instances for each chat msg"
   [train-instance-list]
   (let [ilist (get-instancelist2 train-instance-list)
-        ;"/home/kiran/sw/ccomp/mallet/tf2.txt"
         trainer (doto (new MaxEntTrainer) (.train ilist 100))
         classifier (.getClassifier trainer)]
     (fn [il] (get-label classifier il))))
 
-(defn add-new-tid-closure
+(def commoncl (classify-closure-sbformat (str lp/ldir "tf2.feat")))
+(defn single-room-closure
   "a closure that operates on a chat msg line"
   [parsefn]
   (let [accuobj (chatmsg-holder)
         acu (cp/generate-msgs-perline parsefn)  
         featfn (frs/gen-features-closure-sbformat (accuobj :append))
-        clfn (classify-closure-sbformat (str lp/ldir "tf2.feat"))
+        ;clfn (classify-closure-sbformat (str lp/ldir "tf2.feat"))
         tidfn (tagger/score-tid-closure 0)]
     (fn [inline]
       (let [parsedmsg (acu inline)
             ik (featfn parsedmsg)
             rval (if (empty? ik) []
-                   (let [instances (gmf/get-instancelist-line
-                                     (map jk/svml-format ik))]
-                     (map #(conj %1 %2) (clfn instances) (map :tid ik))))
+                   (let [svmli (map jk/svml-format ik)
+                         instances (gmf/get-instancelist-line svmli)
+                         cl2 (commoncl instances)]
+         ;            (println (str " instances " parsedmsg))
+                     (map #(conj %1 %2) cl2 (map :tid ik))))
             ntid (tidfn [parsedmsg rval])]
-        (println (str " parsed msg " parsedmsg))
+        ;(println (str " curstate " (vec rval)))
         ((accuobj :changelast) :ntid ntid)))))
 
-(defn add-new-tid-closure2
+(defn multi-room-closure
   "a closure that operates on a chat msg line"
-  [parsefn]
-  (let [accuobj (chatmsg-holder)
-        acu (cp/generate-msgs-perline parsefn)  
+  []
+  (let [accuobj (chatmsg-holder) 
         featfn (frs/gen-features-closure-sbformat (accuobj :append))
-        clfn (classify-closure-sbformat (str lp/ldir "tf2.feat"))
-        tidfn (tagger/score-tid-closure 0)
+        tidfn (tagger/score-tid-closure 0)]
+    (fn [parsedmsg]
+      (let [ik (featfn parsedmsg)
+            rval (if (empty? ik) []
+                   (let [svmli (map jk/svml-format ik)
+                         instances (gmf/get-instancelist-line svmli)
+                         cl2 (commoncl instances)]
+                     ;(println (str " instances " parsedmsg))
+                     (map #(conj %1 %2) cl2 (map :tid ik))))
+            ntid (tidfn [parsedmsg rval])]
+        ;(println (str " curstate " (vec rval)))
+        ((accuobj :changelast) :ntid ntid)))))
+
+(defn get-room-closure
+  ""
+  []
+  (let [rooms (ref {})
+        acu (cp/generate-msgs-perline sbformat-parseline)
+        ;clfn (classify-closure-sbformat (str lp/ldir "tf2.feat"))
         ]
     (fn [inline]
-      (let [parsedmsg (acu inline)
-            ik (featfn parsedmsg)
-            ;ss ((accuobj :append) parsedmsg)
-            rval (if (empty? ik) []
-                   (let [instances (gmf/get-instancelist-line
-                                     (map jk/svml-format ik))]
-                     (map #(conj %1 %2) (clfn instances) (map :tid ik))))
-            ntid (tidfn [parsedmsg rval])
-            ]
-       ; (println (str " parsed msg " ik))
-        ;(println (str " parsed msg " parsedmsg))
-        ((accuobj :changelast) :ntid ntid)))))
+      (let [pmsg (acu inline)
+            roomname (:room pmsg)]
+        (if-let [rfn (rooms roomname)] (rfn pmsg)
+          (let [newcl (multi-room-closure )]
+            (dosync (alter rooms (fn[x] 
+                                   (assoc x roomname newcl))))
+            (newcl pmsg))))))
+        )
 
-(defn get-sb-format
+(defn get-sb-format-multi-room
   [infile]
   (let [c1 (slurp infile)
         iseq (.split c1 "\n")  
-        featfn (add-new-tid-closure2 sbformat-parseline)]
+        featfn (get-room-closure)]
+      (map featfn iseq)))
+
+(defn get-sb-format-single-room
+  [infile]
+  (let [c1 (slurp infile)
+        iseq (.split c1 "\n")  
+        featfn (single-room-closure sbformat-parseline)]
       (map featfn iseq)))
 
 (defn get-sb-outputformat
   "generate output in sb format"
-  [outfile infile]
+  [formatfn outfile infile]
   (spit outfile
         (clojure.string/join "\n"
         (mapv #(clojure.string/join " " (mapv (fn[x] ((last %) x)) [:msgid :ntid]))  
-             (get-sb-format infile)))))
+             (formatfn infile)))))
 
-(get-sb-outputformat "C:\\temp\\sbo1.txt"
-                     ;(str lp/ldir "scrollback-nlp-v0.1.input")
-                     ;(str lp/ldir  "trainfile-sb-format.txt")
-                     "c:\\temp\\trainfile-sb-format.txt"
-                     )
+(get-sb-outputformat get-sb-format-single-room 
+                     "C:\\temp\\sbosingrm.txt"
+                     "c:\\temp\\trainfile-sb-format.txt")
+
+(get-sb-outputformat get-sb-format-multi-room 
+                     "C:\\temp\\sbomultrm.txt"
+                     "c:\\temp\\trainfile-sb-format.txt")
