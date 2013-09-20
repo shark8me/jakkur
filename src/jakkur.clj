@@ -13,15 +13,13 @@
 (defn svml-format
   "converts a map of features into Mallet Instances in svml format"
   [inp]
-  (let [allfeats (dissoc inp :same)
+  (let [allfeats (dissoc inp :same :tid)
         inpstr (str (inp :same) " " 
                     (clojure.string/join " "                              
                                          (for [i frs/fkeys]
                                            (str i ":" (if-let [k (allfeats i)] k 0)))))]
-    (new Instance 
-         inpstr
-         ;(inp :same)
-         nil nil nil)))
+    ;(println (str " inpstr " inpstr))
+    (new Instance inpstr nil nil nil)))
 
 (defn list-format
   "converts a map of features into Mallet Instances, only a list 
