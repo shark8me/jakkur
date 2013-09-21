@@ -19,4 +19,8 @@
 
 (convert-to-sb-format "linux-dev"
                       (str lp/ldir "linux-dev.txt")
-                      "C:\\temp\\trainfile-sb-format.txt")
+                      (str lp/ldir "linux-dev-sbform.txt"))
+
+(convert-to-sb-format "linux-test"
+                      (str lp/ldir "linux-test.txt")
+                      (str lp/ldir "linux-test-sbform.txt"))

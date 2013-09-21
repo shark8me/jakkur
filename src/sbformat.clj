@@ -191,10 +191,53 @@
         (mapv #(clojure.string/join " " (mapv (fn[x] ((last %) x)) [:msgid :ntid]))  
              (formatfn infile)))))
 
+(defn interleave-file
+  [file1 file2 opfile]
+  (let [fread (fn[x] (.split (slurp x) "\n"))
+        [f1 f2] (map fread [file1 file2])
+        [c1 c2] (map count [f1 f2])]
+    (spit opfile
+          (clojure.string/join "\n"
+                               (vec 
+                                 (concat (interleave f1 f2) 
+                                         (if (> c1 c2) (nthrest f1 c2) (nthrest f2 c1))))))))
+
+(defn verify-interleaved-results
+  []
+  (let [mmap (fn [ifile]
+               (apply merge
+                      (for [i (.split (slurp ifile) "\n")
+                            :let [[k1 k2]  (.split i " ")]] 
+                        {k1 k2})))
+        allmaps (apply merge (map mmap ["C:\\temp\\sbo_dev.txt"
+                                        "C:\\temp\\sbo_test.txt"]))
+        combmap (mmap "C:\\temp\\sbo_inter_output.txt")]
+    (println (str " a " (count allmaps) " s " (count combmap)))
+    (and (= (count allmaps) (count combmap))
+         (every? combmap (keys allmaps))
+         (every? #(= (combmap %) (allmaps %)) (keys allmaps)))
+  ))
+
+(verify-interleaved-results)
+(comment
+(interleave-file (str lp/ldir "linux-dev-sbform.txt")
+                 (str lp/ldir "linux-test-sbform.txt")
+                 "C:\\temp\\sbo_interleaved.txt")
+    
 (get-sb-outputformat get-sb-format-single-room 
-                     "C:\\temp\\sbosingrm.txt"
-                     "c:\\temp\\trainfile-sb-format.txt")
+                     "C:\\temp\\sbo_dev.txt"
+                     (str lp/ldir "linux-dev-sbform.txt"))
+(get-sb-outputformat get-sb-format-single-room 
+                     "C:\\temp\\sbo_test.txt"
+                     (str lp/ldir "linux-test-sbform.txt"))
 
 (get-sb-outputformat get-sb-format-multi-room 
                      "C:\\temp\\sbomultrm.txt"
-                     "c:\\temp\\trainfile-sb-format.txt")
+                     (str lp/ldir "linux-devtest-sbform.txt"))
+)
+;interleaved
+(try
+(get-sb-outputformat get-sb-format-multi-room 
+                     "C:\\temp\\sbo_inter_output.txt"
+                     "C:\\temp\\sbo_interleaved.txt")
+(catch Exception e(.printStackTrace e)))
