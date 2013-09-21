@@ -2,6 +2,7 @@
 (use '[chatparse :as cp])
 (use '[localpath :as lp])
 (use '[clojure.test :as t])
+(use '[clojure.set :as cset])
 ;operate on a per-chat message basis
 
 (defn iter1 [chats blocksize]
@@ -78,6 +79,7 @@
       (iter1 chats blocksize)
       ))
 
+  (comment
   (let [f1 (str lp/ldir "linux-dev-0X.annot")
         r1 (remove empty?
                    (prev-lines-for-curr2 f1))
@@ -88,7 +90,7 @@
                     (remove nil? 
                       (map (fn[x y] (if (not= x y) [x y] nil)) 
                            r1 r2)))]
-        (clojure.set/difference (set x) (set y))
-                      )))
+        (cset/difference (set x) (set y))
+                      ))))
 
                             

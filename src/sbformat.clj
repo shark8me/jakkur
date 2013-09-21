@@ -136,7 +136,7 @@
 
 (defn multi-room-closure
   "a closure that operates on a chat msg line"
-  []
+  [clfn]
   (let [accuobj (chatmsg-holder) 
         featfn (frs/gen-features-closure-sbformat (accuobj :append))
         tidfn (tagger/score-tid-closure 0)]
@@ -145,7 +145,7 @@
             rval (if (empty? ik) []
                    (let [svmli (map jk/svml-format ik)
                          instances (gmf/get-instancelist-line svmli)
-                         cl2 (commoncl instances)]
+                         cl2 (clfn instances)]
                      ;(println (str " instances " parsedmsg))
                      (map #(conj %1 %2) cl2 (map :tid ik))))
             ntid (tidfn [parsedmsg rval])]
@@ -157,13 +157,13 @@
   []
   (let [rooms (ref {})
         acu (cp/generate-msgs-perline sbformat-parseline)
-        ;clfn (classify-closure-sbformat (str lp/ldir "tf2.feat"))
+        clfn (classify-closure-sbformat (str lp/ldir "tf2.feat"))
         ]
     (fn [inline]
       (let [pmsg (acu inline)
             roomname (:room pmsg)]
         (if-let [rfn (rooms roomname)] (rfn pmsg)
-          (let [newcl (multi-room-closure )]
+          (let [newcl (multi-room-closure clfn)]
             (dosync (alter rooms (fn[x] 
                                    (assoc x roomname newcl))))
             (newcl pmsg))))))
@@ -218,7 +218,7 @@
          (every? #(= (combmap %) (allmaps %)) (keys allmaps)))
   ))
 
-(verify-interleaved-results)
+
 (comment
 (interleave-file (str lp/ldir "linux-dev-sbform.txt")
                  (str lp/ldir "linux-test-sbform.txt")
@@ -234,10 +234,12 @@
 (get-sb-outputformat get-sb-format-multi-room 
                      "C:\\temp\\sbomultrm.txt"
                      (str lp/ldir "linux-devtest-sbform.txt"))
-)
 ;interleaved
 (try
 (get-sb-outputformat get-sb-format-multi-room 
                      "C:\\temp\\sbo_inter_output.txt"
                      "C:\\temp\\sbo_interleaved.txt")
 (catch Exception e(.printStackTrace e)))
+(verify-interleaved-results)
+)
+
