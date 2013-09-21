@@ -6,7 +6,7 @@ A Clojure library designed to ... well, that part is up to you.
 
 Steps:
 * Install leiningen (https://github.com/technomancy/leiningen)
-* Download the zip containing the sources
+* Download the zip containing the sources of this project
 * Copy the data directory from Dropbox.
 * change src/localpath.clj to reflect the path of the data directory
 * Run "lein uberjar", which generates a jar with all dependencies in the target folder.
