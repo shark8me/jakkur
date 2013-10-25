@@ -1,6 +1,6 @@
-# sb
+# jakkur
 
-A Clojure library designed to ... well, that part is up to you.
+A clojure implementation of the Elsner-Charniak chat thread disentanglement algorithm. (See http://cs.brown.edu/~melsner/chat-manual.html)
 
 ## Usage
 
